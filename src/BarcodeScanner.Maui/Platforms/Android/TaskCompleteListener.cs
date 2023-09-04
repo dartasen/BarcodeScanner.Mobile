@@ -1,35 +1,29 @@
 ﻿using Android.Gms.Tasks;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
-namespace BarcodeScanner.Mobile.Platforms.Android
+namespace BarcodeScanner.Mobile.Platforms.Android;
+
+internal class TaskCompleteListener : Java.Lang.Object, IOnCompleteListener
 {
-    internal class TaskCompleteListener : Java.Lang.Object, IOnCompleteListener
+    private readonly TaskCompletionSource<Java.Lang.Object> taskCompletionSource;
+
+    public TaskCompleteListener(TaskCompletionSource<Java.Lang.Object> tcs)
     {
-        private readonly TaskCompletionSource<Java.Lang.Object> _taskCompletionSource;
+        taskCompletionSource = tcs;
+    }
 
-        public TaskCompleteListener(TaskCompletionSource<Java.Lang.Object> tcs)
+    public void OnComplete(global::Android.Gms.Tasks.Task task)
+    {
+        if (task.IsCanceled)
         {
-            _taskCompletionSource = tcs;
+            taskCompletionSource.SetCanceled();
         }
-
-        public void OnComplete(global::Android.Gms.Tasks.Task task)
+        else if (task.IsSuccessful)
         {
-            if (task.IsCanceled)
-            {
-                _taskCompletionSource.SetCanceled();
-            }
-            else if (task.IsSuccessful)
-            {
-                _taskCompletionSource.SetResult(task.Result);
-            }
-            else
-            {
-                _taskCompletionSource.SetException(task.Exception);
-            }
+            taskCompletionSource.SetResult(task.Result);
+        }
+        else
+        {
+            taskCompletionSource.SetException(task.Exception);
         }
     }
 }

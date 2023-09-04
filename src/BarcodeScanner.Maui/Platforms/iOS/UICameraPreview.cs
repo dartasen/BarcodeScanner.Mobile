@@ -5,7 +5,7 @@ namespace BarcodeScanner.Mobile.Platforms.iOS;
 
 public class UICameraPreview : UIView
 {
-    CameraViewHandler _cameraViewHandler;
+    private readonly CameraViewHandler cameraViewHandler;
 
     public UICameraPreview(AVCaptureVideoPreviewLayer layer) : base()
     {
@@ -19,10 +19,11 @@ public class UICameraPreview : UIView
     public override void LayoutSubviews()
     {
         base.LayoutSubviews();
-        setPreviewOrientation();
+        SetPreviewOrientation();
         PreviewLayer.Frame = Layer.Bounds;
     }
-    private void setPreviewOrientation()
+
+    private void SetPreviewOrientation()
     {
         var connection = PreviewLayer.Connection;
         if (connection != null)
@@ -40,26 +41,26 @@ public class UICameraPreview : UIView
                         switch (orientation)
                         {
                             case UIInterfaceOrientation.Portrait:
-                                updatePreviewLayer(previewLayerConnection, AVCaptureVideoOrientation.Portrait);
+                                UpdatePreviewLayer(previewLayerConnection, AVCaptureVideoOrientation.Portrait);
                                 break;
                             case UIInterfaceOrientation.LandscapeLeft:
-                                updatePreviewLayer(previewLayerConnection, AVCaptureVideoOrientation.LandscapeLeft);
+                                UpdatePreviewLayer(previewLayerConnection, AVCaptureVideoOrientation.LandscapeLeft);
                                 break;
                             case UIInterfaceOrientation.LandscapeRight:
-                                updatePreviewLayer(previewLayerConnection, AVCaptureVideoOrientation.LandscapeRight);
+                                UpdatePreviewLayer(previewLayerConnection, AVCaptureVideoOrientation.LandscapeRight);
                                 break;
                             case UIInterfaceOrientation.PortraitUpsideDown:
-                                updatePreviewLayer(previewLayerConnection, AVCaptureVideoOrientation.PortraitUpsideDown);
+                                UpdatePreviewLayer(previewLayerConnection, AVCaptureVideoOrientation.PortraitUpsideDown);
                                 break;
                             default:
-                                updatePreviewLayer(previewLayerConnection, AVCaptureVideoOrientation.Portrait);
+                                UpdatePreviewLayer(previewLayerConnection, AVCaptureVideoOrientation.Portrait);
                                 break;
                         }
                     }
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"{nameof(setPreviewOrientation)}: {ex.Message}, {ex.StackTrace}");
+                    Console.WriteLine($"{nameof(SetPreviewOrientation)}: {ex.Message}, {ex.StackTrace}");
                 }
 
             }
@@ -73,19 +74,19 @@ public class UICameraPreview : UIView
                     switch (orientation)
                     {
                         case UIInterfaceOrientation.Portrait:
-                            updatePreviewLayer(previewLayerConnection, AVCaptureVideoOrientation.Portrait);
+                            UpdatePreviewLayer(previewLayerConnection, AVCaptureVideoOrientation.Portrait);
                             break;
                         case UIInterfaceOrientation.LandscapeLeft:
-                            updatePreviewLayer(previewLayerConnection, AVCaptureVideoOrientation.LandscapeLeft);
+                            UpdatePreviewLayer(previewLayerConnection, AVCaptureVideoOrientation.LandscapeLeft);
                             break;
                         case UIInterfaceOrientation.LandscapeRight:
-                            updatePreviewLayer(previewLayerConnection, AVCaptureVideoOrientation.LandscapeRight);
+                            UpdatePreviewLayer(previewLayerConnection, AVCaptureVideoOrientation.LandscapeRight);
                             break;
                         case UIInterfaceOrientation.PortraitUpsideDown:
-                            updatePreviewLayer(previewLayerConnection, AVCaptureVideoOrientation.PortraitUpsideDown);
+                            UpdatePreviewLayer(previewLayerConnection, AVCaptureVideoOrientation.PortraitUpsideDown);
                             break;
                         default:
-                            updatePreviewLayer(previewLayerConnection, AVCaptureVideoOrientation.Portrait);
+                            UpdatePreviewLayer(previewLayerConnection, AVCaptureVideoOrientation.Portrait);
                             break;
                     }
                 }
@@ -101,19 +102,19 @@ public class UICameraPreview : UIView
                     switch (orientation)
                     {
                         case UIDeviceOrientation.Portrait:
-                            updatePreviewLayer(previewLayerConnection, AVCaptureVideoOrientation.Portrait);
+                            UpdatePreviewLayer(previewLayerConnection, AVCaptureVideoOrientation.Portrait);
                             break;
                         case UIDeviceOrientation.LandscapeLeft:
-                            updatePreviewLayer(previewLayerConnection, AVCaptureVideoOrientation.LandscapeLeft);
+                            UpdatePreviewLayer(previewLayerConnection, AVCaptureVideoOrientation.LandscapeLeft);
                             break;
                         case UIDeviceOrientation.LandscapeRight:
-                            updatePreviewLayer(previewLayerConnection, AVCaptureVideoOrientation.LandscapeRight);
+                            UpdatePreviewLayer(previewLayerConnection, AVCaptureVideoOrientation.LandscapeRight);
                             break;
                         case UIDeviceOrientation.PortraitUpsideDown:
-                            updatePreviewLayer(previewLayerConnection, AVCaptureVideoOrientation.PortraitUpsideDown);
+                            UpdatePreviewLayer(previewLayerConnection, AVCaptureVideoOrientation.PortraitUpsideDown);
                             break;
                         default:
-                            updatePreviewLayer(previewLayerConnection, AVCaptureVideoOrientation.Portrait);
+                            UpdatePreviewLayer(previewLayerConnection, AVCaptureVideoOrientation.Portrait);
                             break;
                     }
                 }
@@ -121,11 +122,8 @@ public class UICameraPreview : UIView
 
         }
     }
-    private void updatePreviewLayer(AVCaptureConnection layer, AVCaptureVideoOrientation orientation)
+    private void UpdatePreviewLayer(AVCaptureConnection layer, AVCaptureVideoOrientation orientation)
     {
         layer.VideoOrientation = orientation;
     }
-
-
 }
-

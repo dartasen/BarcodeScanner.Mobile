@@ -1,0 +1,39 @@
+<Project>
+
+	<!-- Versioning -->
+	<PropertyGroup>
+		<VersionPrefix>7.0.1</VersionPrefix>
+		<VersionSuffix>-pre</VersionSuffix>
+		<Version>$(VersionPrefix)$(VersionSuffix)</Version>
+		<PackageVersion>$(VersionPrefix)$(VersionSuffix)</PackageVersion>
+		<AssemblyVersion>$(VersionPrefix).0</AssemblyVersion>
+		<FileVersion>$(VersionPrefix).0</FileVersion>
+	</PropertyGroup>
+
+	<!-- Following properties can be overriden per project -->
+	<PropertyGroup Condition="'$(MSBuildProjectExtension)' == '.csproj'">
+		<TargetFramework>net7.0</TargetFramework>
+		<LangVersion>latest</LangVersion>
+		<Nullable>disable</Nullable>
+		<AnalysisLevel>latest</AnalysisLevel>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<DisableTransitiveProjectReferences>true</DisableTransitiveProjectReferences>
+		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+		<PackOnBuild>true</PackOnBuild>
+	</PropertyGroup>
+
+	<!-- NuGet -->
+	<PropertyGroup Condition="'$(Configuration)' == 'Release'">
+		<RepositoryType>git</RepositoryType>
+		<Title>Nexus Core</Title>
+		<Company>Michelin</Company>
+		<Authors>Michelin</Authors>
+		<Description>Powerful MAUI barcode scanning library using GoogleVision API for Android and iOS.</Description>
+		<PackageProjectUrl></PackageProjectUrl>
+	</PropertyGroup>
+
+	<ItemGroup Condition="'$(Configuration)' == 'Release'">
+		<None Include="..\logo.jpg" Pack="True" PackagePath="" />
+	</ItemGroup>
+
+</Project>

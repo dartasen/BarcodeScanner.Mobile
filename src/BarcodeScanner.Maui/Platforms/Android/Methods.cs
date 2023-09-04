@@ -11,6 +11,80 @@ namespace BarcodeScanner.Mobile;
 // All the code in this file is only included on Android.
 public class Methods
 {
+    public static void SetSupportBarcodeFormat(BarcodeFormats barcodeFormats)
+    {
+        int supportFormats = Methods.ConvertBarcodeFormats(barcodeFormats);
+        Configuration.BarcodeFormats = supportFormats;
+    }
+
+    public static async Task<bool> AskForRequiredPermission()
+    {
+        try
+        {
+            PermissionStatus status = await Permissions.CheckStatusAsync<Permissions.Camera>();
+            if (status != PermissionStatus.Granted)
+            {
+                await Permissions.RequestAsync<Permissions.Camera>();
+            }
+
+            status = await Permissions.CheckStatusAsync<Permissions.Camera>();
+            if (status == PermissionStatus.Granted)
+            {
+                return true;
+            }
+        }
+        catch (Exception)
+        {
+            //Something went wrong
+        }
+
+        return false;
+    }
+
+    public static async Task<List<BarcodeResult>> ScanFromImage(byte[] imageArray)
+    {
+        using Bitmap bitmap = await BitmapFactory.DecodeByteArrayAsync(imageArray, 0, imageArray.Length);
+        if (bitmap == null) return null;
+
+        using InputImage image = InputImage.FromBitmap(bitmap, 0);
+        IBarcodeScanner scanner = BarcodeScanning.GetClient(
+                new BarcodeScannerOptions.Builder().SetBarcodeFormats(Configuration.BarcodeFormats).Build()
+        );
+
+        return ProcessBarcodeResult(await scanner.Process(image));
+    }
+
+    public static List<BarcodeResult> ProcessBarcodeResult(Java.Lang.Object result)
+    {
+        if (result == null) return null;
+
+        ArrayList javaList = result.JavaCast<ArrayList>();
+        if (javaList?.IsEmpty ?? false) return null;
+
+        List<BarcodeResult> resultList = new();
+        foreach (var barcode in javaList.ToArray())
+        {
+            Barcode mapped = barcode.JavaCast<Barcode>();
+
+            List<Microsoft.Maui.Graphics.Point> cornerPoints = new();
+
+            foreach (Android.Graphics.Point cornerPoint in mapped.GetCornerPoints())
+            {
+                cornerPoints.Add(new Microsoft.Maui.Graphics.Point(cornerPoint.X, cornerPoint.Y));
+            }
+
+            resultList.Add(new BarcodeResult()
+            {
+                BarcodeType = ConvertBarcodeResultTypes(mapped.ValueType),
+                BarcodeFormat = (BarcodeFormats)mapped.Format,
+                DisplayValue = mapped.DisplayValue,
+                RawValue = mapped.RawValue
+            });
+        }
+
+        return resultList;
+    }
+
     internal static BarcodeTypes ConvertBarcodeResultTypes(int barcodeValueType)
     {
         return barcodeValueType switch
@@ -66,79 +140,5 @@ public class Methods
         if (barcodeFormats.HasFlag(BarcodeFormats.ALL))
             formats |= Barcode.FormatAllFormats;
         return formats;
-    }
-
-    public static void SetSupportBarcodeFormat(BarcodeFormats barcodeFormats)
-    {
-        int supportFormats = Methods.ConvertBarcodeFormats(barcodeFormats);
-        Configuration.BarcodeFormats = supportFormats;
-    }
-
-    public static async Task<bool> AskForRequiredPermission()
-    {
-        try
-        {
-            PermissionStatus status = await Permissions.CheckStatusAsync<Permissions.Camera>();
-            if (status != PermissionStatus.Granted)
-            {
-                await Permissions.RequestAsync<Permissions.Camera>();
-            }
-
-            status = await Permissions.CheckStatusAsync<Permissions.Camera>();
-            if (status == PermissionStatus.Granted)
-            {
-                return true;
-            }
-        }
-        catch (Exception)
-        {
-            //Something went wrong
-        }
-
-        return false;
-    }
-
-    public static async Task<List<BarcodeResult>> ScanFromImage(byte[] imageArray)
-    {
-        using Bitmap bitmap = await BitmapFactory.DecodeByteArrayAsync(imageArray, 0, imageArray.Length);
-        if (bitmap == null)
-            return null;
-        using var image = InputImage.FromBitmap(bitmap, 0);
-        var scanner = BarcodeScanning.GetClient(new BarcodeScannerOptions.Builder().SetBarcodeFormats(Configuration.BarcodeFormats)
-            .Build());
-        return ProcessBarcodeResult(await scanner.Process(image));
-    }
-
-    public static List<BarcodeResult> ProcessBarcodeResult(Java.Lang.Object result)
-    {
-        if (result == null) return null;
-
-        ArrayList javaList = result.JavaCast<ArrayList>();
-        if (javaList?.IsEmpty ?? false) return null;
-
-        List<BarcodeResult> resultList = new();
-        foreach (var barcode in javaList.ToArray())
-        {
-            Barcode mapped = barcode.JavaCast<Barcode>();
-
-            List<Microsoft.Maui.Graphics.Point> cornerPoints = new();
-
-            foreach (Android.Graphics.Point cornerPoint in mapped.GetCornerPoints())
-            {
-                cornerPoints.Add(new Microsoft.Maui.Graphics.Point(cornerPoint.X, cornerPoint.Y));
-            }
-
-            resultList.Add(new BarcodeResult()
-            {
-                BarcodeType = ConvertBarcodeResultTypes(mapped.ValueType),
-                BarcodeFormat = (BarcodeFormats)mapped.Format,
-                DisplayValue = mapped.DisplayValue,
-                RawValue = mapped.RawValue,
-                CornerPoints = cornerPoints.ToArray(),
-                RawData = mapped.GetRawBytes()
-            });
-        }
-
-        return resultList;
     }
 }

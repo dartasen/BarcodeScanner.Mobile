@@ -16,5 +16,5 @@ public enum BarcodeFormats
     UPCE = 1 << 11,
     PDF_417 = 1 << 12,
     AZTEC = 1 << 13,
-    ALL = CODE_128 | CODE_39 | CODE_93 | CODE_93 | CODA_BAR | DATA_MATRIX | EAN_13 | EAN_8 | ITF | QR_CODE | UPCA | UPCE | PDF_417 | AZTEC
+    ALL = CODE_128 | CODE_39 | CODE_93 | CODA_BAR | DATA_MATRIX | EAN_13 | EAN_8 | ITF | QR_CODE | UPCA | UPCE | PDF_417 | AZTEC
 }

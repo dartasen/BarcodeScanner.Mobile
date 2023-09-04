@@ -1,5 +1,6 @@
 ﻿namespace BarcodeScanner.Mobile;
 
+[Serializable]
 public class BarcodeResult
 {
     public BarcodeTypes BarcodeType { get; set; }
@@ -10,10 +11,8 @@ public class BarcodeResult
 
     public string RawValue { get; set; }
 
-    /// <summary>
-    /// This value is native coordination, please be reminded that you may not able to use it directly...
-    /// </summary>
-    public Point[] CornerPoints { get; set; }
-
-    public byte[] RawData { get; set; }
+    public override string ToString()
+    {
+        return $"[{nameof(BarcodeResult)}: BarcodeType: {BarcodeType}, BarcodeFormat: {BarcodeFormat}, DisplayValue: {DisplayValue}, RawValue: {RawValue}]";
+    }
 }

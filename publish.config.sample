@@ -1,0 +1,2 @@
+NUGET_FEED_URL="http://localhost:5000/v3/index.json"
+NUGET_API_KEY=""

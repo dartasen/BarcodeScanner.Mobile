@@ -2,10 +2,7 @@
 using BarcodeScanner.Mobile.Platforms.iOS;
 using CoreVideo;
 using Foundation;
-using HomeKit;
-using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
-using UIKit;
 
 namespace BarcodeScanner.Mobile;
 
@@ -113,7 +110,7 @@ public partial class CameraViewHandler
         }
         catch
         {
-
+            // Ignore
         }
     }
 
@@ -194,23 +191,27 @@ public partial class CameraViewHandler
 
     public void HandleZoom()
     {
-        if (CaptureDevice == null) return;
-
-        IsUpdatingZoom = true;
-
-        CaptureDevice.LockForConfiguration(out NSError error);
-        if (error == null)
+        Application.Current.Dispatcher.Dispatch(() =>
         {
-            double min = CaptureDevice.MinAvailableVideoZoomFactor;
-            double max = CaptureDevice.MaxAvailableVideoZoomFactor;
-            double currentZoom = VirtualView.Zoom;
+            if (IsUpdatingZoom) return;
+            if (CaptureDevice == null) return;
 
-            CaptureDevice.VideoZoomFactor = new NFloat(Math.Clamp(currentZoom, min, max));
+            IsUpdatingZoom = true;
 
-        }
-        CaptureDevice.UnlockForConfiguration();
+            CaptureDevice.LockForConfiguration(out NSError error);
+            if (error == null)
+            {
+                double min = CaptureDevice.MinAvailableVideoZoomFactor;
+                double max = CaptureDevice.MaxAvailableVideoZoomFactor;
+                double currentZoom = VirtualView.Zoom;
 
-        IsUpdatingZoom = false;
+                CaptureDevice.VideoZoomFactor = new NFloat(Math.Clamp(currentZoom, min, max));
+
+            }
+            CaptureDevice.UnlockForConfiguration();
+
+            IsUpdatingZoom = false;
+        });
     }
 
     public void ChangeCameraFacing()
@@ -267,7 +268,7 @@ public partial class CameraViewHandler
     }
     public void ChangeCameraQuality()
     {
-        AVCaptureInput input = CaptureSession.Inputs.FirstOrDefault();
+        AVCaptureInput input = CaptureSession.Inputs?.FirstOrDefault();
 
         if (input != null && CaptureSession != null)
         {

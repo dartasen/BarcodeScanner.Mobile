@@ -12,22 +12,24 @@ namespace BarcodeScanner.Mobile.Platforms.iOS;
 
 public class CaptureVideoDelegate : AVCaptureVideoDataOutputSampleBufferDelegate
 {
+    private readonly ICameraView cameraView;
+
     public event Action<OnDetectedEventArg> OnDetected;
-    MLKit.BarcodeScanning.BarcodeScanner barcodeDetector;
-    UIImageOrientation orientation = UIImageOrientation.Up;
-    long lastAnalysisTime = DateTimeOffset.MinValue.ToUnixTimeMilliseconds();
-    long lastRunTime = DateTimeOffset.MinValue.ToUnixTimeMilliseconds();
-    ICameraView _cameraView;
+    private readonly MLKit.BarcodeScanning.BarcodeScanner barcodeDetector;
+    private readonly UIImageOrientation orientation = UIImageOrientation.Up;
+    private long lastAnalysisTime = DateTimeOffset.MinValue.ToUnixTimeMilliseconds();
+    private long lastRunTime = DateTimeOffset.MinValue.ToUnixTimeMilliseconds();
+
     public CaptureVideoDelegate(ICameraView cameraView)
     {
-        _cameraView = cameraView;
-
-        if (_cameraView != null)
+        this.cameraView = cameraView;
+        if (this.cameraView != null)
         {
-            if (_cameraView.ScanInterval < 100)
-                _cameraView.ScanInterval = 500;
+            if (this.cameraView.ScanInterval < 100)
+                this.cameraView.ScanInterval = 500;
         }
-        var options = new BarcodeScannerOptions(Configuration.BarcodeDetectorSupportFormat);
+
+        BarcodeScannerOptions options = new(Configuration.BarcodeDetectorSupportFormat);
         barcodeDetector = MLKit.BarcodeScanning.BarcodeScanner.BarcodeScannerWithOptions(options);
         orientation = GetUIImageOrientation();
     }
@@ -62,81 +64,72 @@ public class CaptureVideoDelegate : AVCaptureVideoDataOutputSampleBufferDelegate
         return orientation;
     }
 
-
     private static UIImage GetImageFromSampleBuffer(CMSampleBuffer sampleBuffer, UIImageOrientation? orientation)
     {
         // Get a pixel buffer from the sample buffer
-        using (var pixelBuffer = sampleBuffer.GetImageBuffer() as CVPixelBuffer)
+        using CVPixelBuffer pixelBuffer = sampleBuffer.GetImageBuffer() as CVPixelBuffer;
+
+        // Lock the base address
+        if (pixelBuffer != null)
         {
-            // Lock the base address
-            if (pixelBuffer != null)
+            pixelBuffer.Lock(CVPixelBufferLock.None);
+
+            // Prepare to decode buffer
+            CGBitmapFlags flags = CGBitmapFlags.PremultipliedFirst | CGBitmapFlags.ByteOrder32Little;
+
+            // Decode buffer - Create a new colorspace
+            using (var cs = CGColorSpace.CreateDeviceRGB())
             {
-                pixelBuffer.Lock(CVPixelBufferLock.None);
+                // Create new context from buffer
+                using CGBitmapContext context = new(pixelBuffer.BaseAddress,
+                    pixelBuffer.Width,
+                    pixelBuffer.Height,
+                    8,
+                    pixelBuffer.BytesPerRow,
+                    cs,
+                    (CGImageAlphaInfo)flags);
+                // Get the image from the context
+                using CGImage cgImage = context.ToImage();
+                // Unlock and return image
+                pixelBuffer.Unlock(CVPixelBufferLock.None);
 
-                // Prepare to decode buffer
-                var flags = CGBitmapFlags.PremultipliedFirst | CGBitmapFlags.ByteOrder32Little;
-
-                // Decode buffer - Create a new colorspace
-                using (var cs = CGColorSpace.CreateDeviceRGB())
+                if (orientation == null)
                 {
-                    // Create new context from buffer
-                    using (var context = new CGBitmapContext(pixelBuffer.BaseAddress,
-                        pixelBuffer.Width,
-                        pixelBuffer.Height,
-                        8,
-                        pixelBuffer.BytesPerRow,
-                        cs,
-                        (CGImageAlphaInfo)flags))
-                    {
-                        // Get the image from the context
-                        using (var cgImage = context.ToImage())
-                        {
-                            // Unlock and return image
-                            pixelBuffer.Unlock(CVPixelBufferLock.None);
-
-                            if (orientation == null)
-                            {
-                                return UIImage.FromImage(cgImage);
-                            }
-
-                            return UIImage.FromImage(cgImage, 1, orientation.Value);
-                        }
-                    }
+                    return UIImage.FromImage(cgImage);
                 }
+
+                return UIImage.FromImage(cgImage, 1, orientation.Value);
             }
-            else
-            {
-                return null;
-            }
+        }
+        else
+        {
+            return null;
         }
     }
 
-    private void releaseSampleBuffer(CMSampleBuffer sampleBuffer)
+    private void ReleaseSampleBuffer(CMSampleBuffer sampleBuffer)
     {
-        if (sampleBuffer != null)
-        {
-            sampleBuffer.Dispose();
-            sampleBuffer = null;
-        }
+        sampleBuffer?.Dispose();
     }
+
     public override void DidOutputSampleBuffer(AVCaptureOutput captureOutput, CMSampleBuffer sampleBuffer, AVCaptureConnection connection)
     {
         lastRunTime = DateTimeOffset.Now.ToUnixTimeMilliseconds();
-        if (lastRunTime - lastAnalysisTime > _cameraView.ScanInterval && _cameraView.IsScanning)
+        if (lastRunTime - lastAnalysisTime > cameraView.ScanInterval && cameraView.IsScanning)
         {
             lastAnalysisTime = lastRunTime;
             try
             {
-                var shouldReturnBarcodeImage = _cameraView.ReturnBarcodeImage;
+                var shouldReturnBarcodeImage = cameraView.ReturnBarcodeImage;
                 var image = GetImageFromSampleBuffer(sampleBuffer, shouldReturnBarcodeImage ? GetUIImageOrientation() : null);
                 if (image == null) return;
 
                 var visionImage = new MLImage(image) { Orientation = orientation };
-                releaseSampleBuffer(sampleBuffer);
+                ReleaseSampleBuffer(sampleBuffer);
                 barcodeDetector.ProcessImage(visionImage, (barcodes, error) =>
                 {
-                    if (_cameraView == null) return;
-                    if (!_cameraView.IsScanning) return;
+                    if (cameraView == null) return;
+                    if (!cameraView.IsScanning) return;
 
                     if (error != null)
                     {
@@ -149,16 +142,20 @@ public class CaptureVideoDelegate : AVCaptureVideoDataOutputSampleBufferDelegate
                         return;
                     }
 
-                    _cameraView.IsScanning = false;
+                    cameraView.IsScanning = false;
 
-                    if (_cameraView.VibrationOnDetected)
+                    if (cameraView.VibrationOnDetected)
+                    {
                         SystemSound.Vibrate.PlayAlertSound();
+                    }
 
-                    List<BarcodeResult> resultList = new List<BarcodeResult>();
-                    foreach (var barcode in barcodes)
+                    List<BarcodeResult> resultList = new();
+                    foreach (Barcode barcode in barcodes)
+                    {
                         resultList.Add(Methods.ProcessBarcodeResult(barcode));
+                    }
 
-                    var imageDataByteArray = new byte[0];
+                    byte[] imageDataByteArray = Array.Empty<byte>();
                     if (shouldReturnBarcodeImage)
                     {
                         using (NSData imageData = image.AsJPEG())
@@ -176,6 +173,6 @@ public class CaptureVideoDelegate : AVCaptureVideoDataOutputSampleBufferDelegate
                 System.Diagnostics.Debug.WriteLine(exception.Message);
             }
         }
-        releaseSampleBuffer(sampleBuffer);
+        ReleaseSampleBuffer(sampleBuffer);
     }
 }
