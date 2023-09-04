@@ -48,6 +48,12 @@ public interface ICameraView : IView
     /// </summary>
     public bool TorchOn { get; set; }
 
+    public static BindableProperty ZoomProperty { get; set; }
+    /// <summary>
+    /// Set the zoom level for the image.
+    /// </summary>
+    public float Zoom { get; set; }
+
     public static BindableProperty CameraFacingProperty { get; set; }
     /// <summary>
     /// Select Back or Front camera.

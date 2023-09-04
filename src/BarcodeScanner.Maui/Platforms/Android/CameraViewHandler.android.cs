@@ -1,6 +1,5 @@
 ﻿using Android.Content;
 using Android.Hardware.Camera2;
-using Android.OS;
 using Android.Util;
 using AndroidX.Camera.Camera2.InterOp;
 using AndroidX.Camera.Core;
@@ -172,10 +171,18 @@ namespace BarcodeScanner.Mobile
             _camera.CameraControl.EnableTorch(VirtualView.TorchOn);
         }
 
+        public void HandleZoom()
+        {
+            if (_camera == null || VirtualView == null) return;
+
+            _camera.CameraControl.SetLinearZoom(VirtualView.Zoom);
+        }
+
         private bool IsTorchOn()
         {
             if (_camera == null || !_camera.CameraInfo.HasFlashUnit)
                 return false;
+
             return (int)_camera.CameraInfo.TorchState?.Value == TorchState.On;
         }
 
@@ -183,6 +190,7 @@ namespace BarcodeScanner.Mobile
         {
             if (_camera == null || !_camera.CameraInfo.HasFlashUnit || (int)_camera.CameraInfo.TorchState?.Value != TorchState.On)
                 return;
+
             _camera.CameraControl.EnableTorch(false);
         }
 
@@ -232,7 +240,5 @@ namespace BarcodeScanner.Mobile
                 Log.Debug($"{nameof(CameraViewHandler)}-{nameof(ClearCameraProvider)}", ex.ToString());
             }
         }
-
-
     }
 }

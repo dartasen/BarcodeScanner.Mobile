@@ -2,7 +2,9 @@
 using BarcodeScanner.Mobile.Platforms.iOS;
 using CoreVideo;
 using Foundation;
+using HomeKit;
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.InteropServices;
 using UIKit;
 
 namespace BarcodeScanner.Mobile;
@@ -11,14 +13,17 @@ public partial class CameraViewHandler
 {
     public event EventHandler IsScanningChanged;
 
-    AVCaptureVideoPreviewLayer VideoPreviewLayer;
-    AVCaptureDevice CaptureDevice;
-    AVCaptureInput CaptureInput = null;
-    CaptureVideoDelegate CaptureVideoDelegate;
-    public AVCaptureSession CaptureSession { get; private set; }
-    AVCaptureVideoDataOutput VideoDataOutput { get; set; }
+    private AVCaptureVideoPreviewLayer VideoPreviewLayer;
+    private AVCaptureDevice CaptureDevice;
+    private AVCaptureInput CaptureInput = null;
+    private CaptureVideoDelegate CaptureVideoDelegate;
 
-    bool isUpdatingTorch { get; set; }
+    public AVCaptureSession CaptureSession { get; private set; }
+    public AVCaptureVideoDataOutput VideoDataOutput { get; set; }
+
+    bool IsUpdatingTorch { get; set; }
+
+    bool IsUpdatingZoom { get; set; }
 
     UICameraPreview _uiCameraPerview;
     protected override UICameraPreview CreatePlatformView()
@@ -28,8 +33,10 @@ public partial class CameraViewHandler
             SessionPreset = AVCaptureSession.Preset640x480
         };
 
-        VideoPreviewLayer = new AVCaptureVideoPreviewLayer(CaptureSession);
-        VideoPreviewLayer.VideoGravity = AVLayerVideoGravity.ResizeAspectFill;
+        VideoPreviewLayer = new AVCaptureVideoPreviewLayer(CaptureSession)
+        {
+            VideoGravity = AVLayerVideoGravity.ResizeAspectFill
+        };
 
         _uiCameraPerview = new UICameraPreview(VideoPreviewLayer);
         return _uiCameraPerview;
@@ -110,7 +117,7 @@ public partial class CameraViewHandler
         }
     }
 
-    NSString GetCaptureSessionResolution(CaptureQuality captureQuality)
+    public NSString GetCaptureSessionResolution(CaptureQuality captureQuality)
     {
         return captureQuality switch
         {
@@ -119,18 +126,18 @@ public partial class CameraViewHandler
             CaptureQuality.MEDIUM => AVCaptureSession.Preset1280x720,
             CaptureQuality.HIGH => AVCaptureSession.Preset1920x1080,
             CaptureQuality.HIGHEST => AVCaptureSession.Preset3840x2160,
-            _ => throw new ArgumentOutOfRangeException(nameof(VirtualView.CaptureQuality))
+            _ => throw new ArgumentOutOfRangeException(nameof(captureQuality))
         };
     }
+
     public void SetFocusMode(AVCaptureFocusMode focusMode = AVCaptureFocusMode.ContinuousAutoFocus)
     {
-        Microsoft.Maui.Controls.Application.Current.Dispatcher.Dispatch(() =>
+        Application.Current.Dispatcher.Dispatch(() =>
         {
-            var videoDevice = AVCaptureDevice.GetDefaultDevice(AVFoundation.AVMediaTypes.Video);
+            AVCaptureDevice videoDevice = AVCaptureDevice.GetDefaultDevice(AVMediaTypes.Video);
             if (videoDevice == null) return;
 
-            NSError error;
-            videoDevice.LockForConfiguration(out error);
+            videoDevice.LockForConfiguration(out NSError error);
             if (error == null)
             {
                 videoDevice.FocusMode = focusMode;
@@ -144,26 +151,28 @@ public partial class CameraViewHandler
         try
         {
             if (CaptureDevice == null || !CaptureDevice.HasTorch || !CaptureDevice.TorchAvailable)
+            {
                 return false;
-            else return CaptureDevice.TorchMode == AVCaptureTorchMode.On;
+            }
+
+            return CaptureDevice.TorchMode == AVCaptureTorchMode.On;
         }
         catch (Exception ex)
         {
             Console.WriteLine($"iOS IsTorchOn error : {ex.Message}, StackTrace : {ex.StackTrace}");
         }
+
         return false;
     }
+
     public void HandleTorch()
     {
         Application.Current.Dispatcher.Dispatch(() =>
         {
-            if (isUpdatingTorch)
-                return;
+            if (IsUpdatingTorch) return;
+            if (CaptureDevice == null || !CaptureDevice.HasTorch || !CaptureDevice.TorchAvailable) return;
 
-            if (CaptureDevice == null || !CaptureDevice.HasTorch || !CaptureDevice.TorchAvailable)
-                return;
-
-            isUpdatingTorch = true;
+            IsUpdatingTorch = true;
 
             CaptureDevice.LockForConfiguration(out NSError error);
             if (error == null)
@@ -179,8 +188,29 @@ public partial class CameraViewHandler
             }
             CaptureDevice.UnlockForConfiguration();
 
-            isUpdatingTorch = false;
+            IsUpdatingTorch = false;
         });
+    }
+
+    public void HandleZoom()
+    {
+        if (CaptureDevice == null) return;
+
+        IsUpdatingZoom = true;
+
+        CaptureDevice.LockForConfiguration(out NSError error);
+        if (error == null)
+        {
+            double min = CaptureDevice.MinAvailableVideoZoomFactor;
+            double max = CaptureDevice.MaxAvailableVideoZoomFactor;
+            double currentZoom = VirtualView.Zoom;
+
+            CaptureDevice.VideoZoomFactor = new NFloat(Math.Clamp(currentZoom, min, max));
+
+        }
+        CaptureDevice.UnlockForConfiguration();
+
+        IsUpdatingZoom = false;
     }
 
     public void ChangeCameraFacing()
@@ -232,7 +262,6 @@ public partial class CameraViewHandler
 
             CaptureInput = new AVCaptureDeviceInput(CaptureDevice, out _);
             CaptureSession.AddInput(CaptureInput);
-
             CaptureSession.CommitConfiguration();
         }
     }

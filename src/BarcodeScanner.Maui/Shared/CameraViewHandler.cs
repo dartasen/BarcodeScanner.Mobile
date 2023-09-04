@@ -12,9 +12,10 @@ namespace BarcodeScanner.Mobile;
 #if ANDROID || IOS
 public partial class CameraViewHandler : ViewHandler<ICameraView, NativeCameraView>
 {
-    public static PropertyMapper<ICameraView, CameraViewHandler> CameraViewMapper = new()
+    public static readonly PropertyMapper<ICameraView, CameraViewHandler> CameraViewMapper = new()
     {
         [nameof(ICameraView.TorchOn)] = (handler, virtualView) => handler.HandleTorch(),
+        [nameof(ICameraView.Zoom)] = (handler, virtualView) => handler.HandleZoom(),
 #if ANDROID
         [nameof(ICameraView.CameraFacing)] = (handler, virtualView) => handler.CameraCallback(),
         [nameof(ICameraView.CaptureQuality)] = (handler, virtualView) => handler.CameraCallback()
@@ -24,17 +25,18 @@ public partial class CameraViewHandler : ViewHandler<ICameraView, NativeCameraVi
 #endif
     };
 
-    public static CommandMapper<ICameraView, CameraViewHandler> CameraCommandMapper = new()
+    public static readonly CommandMapper<ICameraView, CameraViewHandler> CameraCommandMapper = new()
     {
     };
 
     public CameraViewHandler() : base(CameraViewMapper)
     {
-    }
 
+    }
 
     public CameraViewHandler(PropertyMapper mapper = null) : base(mapper ?? CameraViewMapper)
     {
+
     }
 
     protected override void ConnectHandler(NativeCameraView nativeView)
@@ -50,5 +52,5 @@ public partial class CameraViewHandler : ViewHandler<ICameraView, NativeCameraVi
     }
 }
 #else
-public partial class CameraViewHandler { }
+public partial class CameraViewHandler {}
 #endif
