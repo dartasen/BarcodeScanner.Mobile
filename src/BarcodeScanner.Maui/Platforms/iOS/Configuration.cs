@@ -1,8 +1,8 @@
-﻿using MLKit.BarcodeScanning;
+﻿using Vision;
 
 namespace BarcodeScanner.Mobile;
 
 public class Configuration
 {
-    public static BarcodeFormat BarcodeDetectorSupportFormat = BarcodeFormat.All;
+    public static VNBarcodeSymbology[] BarcodeDetectorSupportFormat = null;
 }

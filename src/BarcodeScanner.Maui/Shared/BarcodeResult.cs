@@ -1,7 +1,7 @@
 ﻿namespace BarcodeScanner.Mobile;
 
 [Serializable]
-public class BarcodeResult
+public record BarcodeResult
 {
     public BarcodeTypes BarcodeType { get; set; }
 
@@ -10,9 +10,4 @@ public class BarcodeResult
     public string DisplayValue { get; set; }
 
     public string RawValue { get; set; }
-
-    public override string ToString()
-    {
-        return $"[{nameof(BarcodeResult)}: BarcodeType: {BarcodeType}, BarcodeFormat: {BarcodeFormat}, DisplayValue: {DisplayValue}, RawValue: {RawValue}]";
-    }
 }

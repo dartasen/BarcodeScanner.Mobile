@@ -3,127 +3,36 @@ using UIKit;
 
 namespace BarcodeScanner.Mobile.Platforms.iOS;
 
-public class UICameraPreview : UIView
+internal class UICameraPreview : UIView
 {
-    private readonly CameraViewHandler cameraViewHandler;
+    private readonly AVCaptureVideoPreviewLayer previewLayer;
 
     public UICameraPreview(AVCaptureVideoPreviewLayer layer) : base()
     {
-        PreviewLayer = layer;
-        PreviewLayer.Frame = Layer.Bounds;
-        Layer.AddSublayer(PreviewLayer);
+        previewLayer = layer;
+        previewLayer.Frame = Layer.Bounds;
+        Layer.AddSublayer(previewLayer);
     }
-
-    public readonly AVCaptureVideoPreviewLayer PreviewLayer;
 
     public override void LayoutSubviews()
     {
         base.LayoutSubviews();
-        SetPreviewOrientation();
-        PreviewLayer.Frame = Layer.Bounds;
-    }
+        previewLayer.Frame = Layer.Bounds;
 
-    private void SetPreviewOrientation()
-    {
-        var connection = PreviewLayer.Connection;
-        if (connection != null)
+        AVCaptureConnection connection = previewLayer.Connection;
+        if (connection == null) return;
+
+        AVCaptureVideoOrientation videoOrientation = UIDevice.CurrentDevice.Orientation switch
         {
-            var currentDevice = UIDevice.CurrentDevice;
-            if (currentDevice.CheckSystemVersion(15, 0))
-            {
-                try
-                {
-                    UIInterfaceOrientation orientation = ((UIWindowScene)UIApplication.SharedApplication.ConnectedScenes.AnyObject)?.InterfaceOrientation ?? UIInterfaceOrientation.Portrait;
+            UIDeviceOrientation.LandscapeLeft => AVCaptureVideoOrientation.LandscapeRight,
+            UIDeviceOrientation.LandscapeRight => AVCaptureVideoOrientation.LandscapeLeft,
+            UIDeviceOrientation.PortraitUpsideDown => AVCaptureVideoOrientation.PortraitUpsideDown,
+            _ => AVCaptureVideoOrientation.Portrait
+        };
 
-                    var previewLayerConnection = connection;
-                    if (previewLayerConnection.SupportsVideoOrientation)
-                    {
-                        switch (orientation)
-                        {
-                            case UIInterfaceOrientation.Portrait:
-                                UpdatePreviewLayer(previewLayerConnection, AVCaptureVideoOrientation.Portrait);
-                                break;
-                            case UIInterfaceOrientation.LandscapeLeft:
-                                UpdatePreviewLayer(previewLayerConnection, AVCaptureVideoOrientation.LandscapeLeft);
-                                break;
-                            case UIInterfaceOrientation.LandscapeRight:
-                                UpdatePreviewLayer(previewLayerConnection, AVCaptureVideoOrientation.LandscapeRight);
-                                break;
-                            case UIInterfaceOrientation.PortraitUpsideDown:
-                                UpdatePreviewLayer(previewLayerConnection, AVCaptureVideoOrientation.PortraitUpsideDown);
-                                break;
-                            default:
-                                UpdatePreviewLayer(previewLayerConnection, AVCaptureVideoOrientation.Portrait);
-                                break;
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"{nameof(SetPreviewOrientation)}: {ex.Message}, {ex.StackTrace}");
-                }
-
-            }
-            else if (currentDevice.CheckSystemVersion(13, 0))
-            {
-                UIInterfaceOrientation orientation = UIApplication.SharedApplication.Windows.FirstOrDefault()?.WindowScene?.InterfaceOrientation ?? UIInterfaceOrientation.Portrait;
-
-                var previewLayerConnection = connection;
-                if (previewLayerConnection.SupportsVideoOrientation)
-                {
-                    switch (orientation)
-                    {
-                        case UIInterfaceOrientation.Portrait:
-                            UpdatePreviewLayer(previewLayerConnection, AVCaptureVideoOrientation.Portrait);
-                            break;
-                        case UIInterfaceOrientation.LandscapeLeft:
-                            UpdatePreviewLayer(previewLayerConnection, AVCaptureVideoOrientation.LandscapeLeft);
-                            break;
-                        case UIInterfaceOrientation.LandscapeRight:
-                            UpdatePreviewLayer(previewLayerConnection, AVCaptureVideoOrientation.LandscapeRight);
-                            break;
-                        case UIInterfaceOrientation.PortraitUpsideDown:
-                            UpdatePreviewLayer(previewLayerConnection, AVCaptureVideoOrientation.PortraitUpsideDown);
-                            break;
-                        default:
-                            UpdatePreviewLayer(previewLayerConnection, AVCaptureVideoOrientation.Portrait);
-                            break;
-                    }
-                }
-            }
-            else
-            {
-                // Apporach on iOS 12 or below, but this will have wrong value, please read issue #55 for more information
-                // https://github.com/JimmyPun610/BarcodeScanner.XF/issues/55
-                var orientation = currentDevice.Orientation;
-                var previewLayerConnection = connection;
-                if (previewLayerConnection.SupportsVideoOrientation)
-                {
-                    switch (orientation)
-                    {
-                        case UIDeviceOrientation.Portrait:
-                            UpdatePreviewLayer(previewLayerConnection, AVCaptureVideoOrientation.Portrait);
-                            break;
-                        case UIDeviceOrientation.LandscapeLeft:
-                            UpdatePreviewLayer(previewLayerConnection, AVCaptureVideoOrientation.LandscapeLeft);
-                            break;
-                        case UIDeviceOrientation.LandscapeRight:
-                            UpdatePreviewLayer(previewLayerConnection, AVCaptureVideoOrientation.LandscapeRight);
-                            break;
-                        case UIDeviceOrientation.PortraitUpsideDown:
-                            UpdatePreviewLayer(previewLayerConnection, AVCaptureVideoOrientation.PortraitUpsideDown);
-                            break;
-                        default:
-                            UpdatePreviewLayer(previewLayerConnection, AVCaptureVideoOrientation.Portrait);
-                            break;
-                    }
-                }
-            }
-
+        if (connection.SupportsVideoOrientation)
+        {
+            connection.VideoOrientation = videoOrientation;
         }
-    }
-    private void UpdatePreviewLayer(AVCaptureConnection layer, AVCaptureVideoOrientation orientation)
-    {
-        layer.VideoOrientation = orientation;
     }
 }

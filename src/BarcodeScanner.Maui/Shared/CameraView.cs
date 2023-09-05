@@ -15,6 +15,21 @@ public partial class CameraView : View, ICameraView
         set => SetValue(OnDetectedCommandProperty, value);
     }
 
+    public static readonly BindableProperty CameraEnabledProperty = BindableProperty.Create(nameof(CameraEnabled)
+    , typeof(bool)
+    , typeof(CameraView)
+    , true
+    , defaultBindingMode: BindingMode.TwoWay
+    , propertyChanged: (bindable, value, newValue) => ((CameraView)bindable).CameraEnabled = (bool)newValue);
+    /// <summary>
+    /// Disables or enables camera.
+    /// </summary>
+    public bool CameraEnabled
+    {
+        get => (bool)GetValue(CameraEnabledProperty);
+        set => SetValue(CameraEnabledProperty, value);
+    }
+
     public static BindableProperty VibrationOnDetectedProperty = BindableProperty.Create(nameof(VibrationOnDetected)
         , typeof(bool)
         , typeof(CameraView)
@@ -25,57 +40,6 @@ public partial class CameraView : View, ICameraView
     {
         get => (bool)GetValue(VibrationOnDetectedProperty);
         set => SetValue(VibrationOnDetectedProperty, value);
-    }
-
-    public static BindableProperty PreviewHeightProperty = BindableProperty.Create(nameof(PreviewHeight), typeof(int?), typeof(CameraView), null);
-    /// <summary>
-    /// Only Android will be reflected this setting
-    /// </summary>
-    public int? PreviewHeight
-    {
-        get => (int?)GetValue(PreviewHeightProperty);
-        set => SetValue(PreviewHeightProperty, value);
-    }
-
-    public static BindableProperty PreviewWidthProperty = BindableProperty.Create(nameof(PreviewWidth), typeof(int?), typeof(CameraView), null);
-    /// <summary>
-    /// Only Android will be reflected this setting
-    /// </summary>
-    public int? PreviewWidth
-    {
-        get => (int?)GetValue(PreviewWidthProperty);
-        set => SetValue(PreviewWidthProperty, value);
-    }
-
-    public static BindableProperty RequestedFPSProperty = BindableProperty.Create(nameof(RequestedFPS)
-        , typeof(float?)
-        , typeof(CameraView)
-        , null
-        , defaultBindingMode: BindingMode.TwoWay
-        , propertyChanged: (bindable, value, newValue) => ((CameraView)bindable).RequestedFPS = (float?)newValue);
-    /// <summary>
-    /// Only Android will be reflected this setting
-    /// </summary>
-    public float? RequestedFPS
-    {
-        get => (float?)GetValue(RequestedFPSProperty);
-        set => SetValue(RequestedFPSProperty, value);
-    }
-
-
-    public static BindableProperty ScanIntervalProperty = BindableProperty.Create(nameof(ScanInterval)
-        , typeof(int)
-        , typeof(CameraView)
-        , 500
-        , defaultBindingMode: BindingMode.TwoWay
-        , propertyChanged: (bindable, value, newValue) => ((CameraView)bindable).ScanInterval = (int)newValue);
-    /// <summary>
-    /// Only iOS will be reflected this setting, Default is 500ms, minimum value is 100ms
-    /// </summary>
-    public int ScanInterval
-    {
-        get => (int)GetValue(ScanIntervalProperty);
-        set => SetValue(ScanIntervalProperty, value);
     }
 
     public static BindableProperty IsScanningProperty = BindableProperty.Create(nameof(IsScanning)
@@ -91,21 +55,6 @@ public partial class CameraView : View, ICameraView
     {
         get => (bool)GetValue(IsScanningProperty);
         set => SetValue(IsScanningProperty, value);
-    }
-
-    public static BindableProperty ReturnBarcodeImageProperty = BindableProperty.Create(nameof(ReturnBarcodeImage)
-        , typeof(bool)
-        , typeof(CameraView)
-        , false
-        , defaultBindingMode: BindingMode.TwoWay
-        , propertyChanged: (bindable, value, newValue) => ((CameraView)bindable).ReturnBarcodeImage = (bool)newValue);
-    /// <summary>
-    /// Disables or enables returning the image which the barcode was read from.
-    /// </summary>
-    public bool ReturnBarcodeImage
-    {
-        get => (bool)GetValue(ReturnBarcodeImageProperty);
-        set => SetValue(ReturnBarcodeImageProperty, value);
     }
 
     public static BindableProperty TorchOnProperty = BindableProperty.Create(nameof(TorchOn)
@@ -129,7 +78,6 @@ public partial class CameraView : View, ICameraView
      , 0f
      , defaultBindingMode: BindingMode.TwoWay
      , propertyChanged: (bindable, value, newValue) => ((CameraView)bindable).Zoom = (float)newValue);
-
     /// <summary>
     /// Set the zoom level for the image.
     /// </summary>
@@ -163,7 +111,7 @@ public partial class CameraView : View, ICameraView
         , propertyChanged: (bindable, value, newValue) => ((CameraView)bindable).CaptureQuality = (CaptureQuality)newValue);
 
     /// <summary>
-    /// Set the capture quality for the image analysys.
+    /// Set the capture quality for the image analysis.
     /// Reccomended and default value is Medium.
     /// Use highest values for more precision or lower for fast scanning.
     /// </summary>
@@ -173,13 +121,48 @@ public partial class CameraView : View, ICameraView
         set => SetValue(CaptureQualityProperty, value);
     }
 
-    public event EventHandler<OnDetectedEventArg> OnDetected;
-    public void TriggerOnDetected(List<BarcodeResult> barCodeResults, byte[] imageData)
+    public static readonly BindableProperty TapToFocusEnabledProperty = BindableProperty.Create(nameof(TapToFocusEnabled)
+    , typeof(bool)
+    , typeof(CameraView)
+    , false
+    , defaultBindingMode: BindingMode.TwoWay
+    , propertyChanged: (bindable, value, newValue) => ((CameraView)bindable).TapToFocusEnabled = (bool)newValue);
+    /// <summary>
+    /// Disables or enables tap-to-focus.
+    /// </summary>
+    public bool TapToFocusEnabled
     {
+        get => (bool)GetValue(TapToFocusEnabledProperty);
+        set => SetValue(TapToFocusEnabledProperty, value);
+    }
+
+    public static readonly BindableProperty PinchToZoomEnabledProperty = BindableProperty.Create(nameof(PinchToZoomEnabled)
+    , typeof(bool)
+    , typeof(CameraView)
+    , true
+    , defaultBindingMode: BindingMode.TwoWay
+    , propertyChanged: (bindable, value, newValue) => ((CameraView)bindable).PinchToZoomEnabled = (bool)newValue);
+    /// <summary>
+    /// Disables or enables tap-to-focus.
+    /// </summary>
+    public bool PinchToZoomEnabled
+    {
+        get => (bool)GetValue(TapToFocusEnabledProperty);
+        set => SetValue(TapToFocusEnabledProperty, value);
+    }
+
+    public event EventHandler<OnDetectedEventArg> OnDetected;
+    public void TriggerOnDetected(List<BarcodeResult> barCodeResults)
+    {
+        if (VibrationOnDetected && barCodeResults.Count > 0)
+        {
+            Vibration.Vibrate(200);
+        }
+
         MainThread.BeginInvokeOnMainThread(() =>
         {
-            OnDetected?.Invoke(this, new OnDetectedEventArg { BarcodeResults = barCodeResults, ImageData = imageData });
-            OnDetectedCommand?.Execute(new OnDetectedEventArg { BarcodeResults = barCodeResults, ImageData = imageData });
+            OnDetected?.Invoke(this, new OnDetectedEventArg { BarcodeResults = barCodeResults });
+            OnDetectedCommand?.Execute(new OnDetectedEventArg { BarcodeResults = barCodeResults });
         });
     }
 
@@ -187,6 +170,7 @@ public partial class CameraView : View, ICameraView
     {
         this.Unloaded += CameraView_Unloaded;
     }
+
     /// <summary>
     /// Due to DisconnectHandler has to be called manually...we do it when the Window unloaded
     /// https://github.com/dotnet/maui/issues/3604

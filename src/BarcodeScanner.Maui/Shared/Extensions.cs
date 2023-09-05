@@ -6,4 +6,12 @@ public static class Extensions
     {
         handlers.AddHandler(typeof(ICameraView), typeof(CameraViewHandler));
     }
+
+    public static MauiAppBuilder UseBarcodeScanning(this MauiAppBuilder builder)
+    {
+        return builder.ConfigureMauiHandlers(handlers =>
+        {
+            handlers.AddHandler(typeof(ICameraView), typeof(CameraViewHandler));
+        });
+    }
 }

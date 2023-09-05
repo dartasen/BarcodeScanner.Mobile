@@ -1,28 +1,22 @@
 ﻿using Microsoft.Maui.Handlers;
 
 #if IOS
-using NativeCameraView = BarcodeScanner.Mobile.Platforms.iOS.UICameraPreview;
+using NativeCameraView = UIKit.UIView;
 #elif ANDROID
 using NativeCameraView = AndroidX.Camera.View.PreviewView;
-using AndroidX.Camera.View;
 #endif
 
 namespace BarcodeScanner.Mobile;
 
-#if ANDROID || IOS
 public partial class CameraViewHandler : ViewHandler<ICameraView, NativeCameraView>
 {
     public static readonly PropertyMapper<ICameraView, CameraViewHandler> CameraViewMapper = new()
     {
-        [nameof(ICameraView.TorchOn)] = (handler, virtualView) => handler.HandleTorch(),
-        [nameof(ICameraView.Zoom)] = (handler, virtualView) => handler.HandleZoom(),
-#if ANDROID
-        [nameof(ICameraView.CameraFacing)] = (handler, virtualView) => handler.CameraCallback(),
-        [nameof(ICameraView.CaptureQuality)] = (handler, virtualView) => handler.CameraCallback()
-#elif IOS
-        [nameof(ICameraView.CameraFacing)] = (handler, virtualView) => handler.ChangeCameraFacing(),
-        [nameof(ICameraView.CaptureQuality)] = (handler, virtualView) => handler.ChangeCameraQuality()
-#endif
+        [nameof(ICameraView.CameraEnabled)] = (handler, virtualView) => handler.HandleCameraEnabled(),
+        [nameof(ICameraView.CameraFacing)] = (handler, virtualView) => handler.UpdateCamera(),
+        [nameof(ICameraView.CaptureQuality)] = (handler, virtualView) => handler.UpdateResolution(),
+        [nameof(ICameraView.TorchOn)] = (handler, virtualView) => handler.UpdateTorch(),
+        [nameof(ICameraView.Zoom)] = (handler, virtualView) => handler.UpdateZoom(),
     };
 
     public static readonly CommandMapper<ICameraView, CameraViewHandler> CameraCommandMapper = new()
@@ -42,15 +36,13 @@ public partial class CameraViewHandler : ViewHandler<ICameraView, NativeCameraVi
     protected override void ConnectHandler(NativeCameraView nativeView)
     {
         base.ConnectHandler(nativeView);
-        this.Connect();
+        this.HandleCameraEnabled();
     }
 
-    protected override void DisconnectHandler(NativeCameraView platformView)
+    protected override void DisconnectHandler(NativeCameraView nativeView)
     {
-        this.Dispose();
-        base.DisconnectHandler(platformView);
+        base.DisconnectHandler(nativeView);
+        this.Stop();
+        nativeView.Dispose();
     }
 }
-#else
-public partial class CameraViewHandler {}
-#endif

@@ -2,8 +2,8 @@
 
 	<!-- Versioning -->
 	<PropertyGroup>
-		<VersionPrefix>7.0.1</VersionPrefix>
-		<VersionSuffix>-pre</VersionSuffix>
+		<VersionPrefix>2.0.0</VersionPrefix>
+		<VersionSuffix>-rc</VersionSuffix>
 		<Version>$(VersionPrefix)$(VersionSuffix)</Version>
 		<PackageVersion>$(VersionPrefix)$(VersionSuffix)</PackageVersion>
 		<AssemblyVersion>$(VersionPrefix).0</AssemblyVersion>
@@ -25,10 +25,10 @@
 	<!-- NuGet -->
 	<PropertyGroup Condition="'$(Configuration)' == 'Release'">
 		<RepositoryType>git</RepositoryType>
-		<Title>Nexus Core</Title>
+		<Title>BarCodeScanner</Title>
 		<Company>Michelin</Company>
 		<Authors>Michelin</Authors>
-		<Description>Powerful MAUI barcode scanning library using GoogleVision API for Android and iOS.</Description>
+		<Description>Powerful MAUI barcode scanning library using GoogleVision API for Android and iOS</Description>
 		<PackageProjectUrl></PackageProjectUrl>
 	</PropertyGroup>
 

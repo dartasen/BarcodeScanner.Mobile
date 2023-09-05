@@ -1,15 +1,8 @@
 ﻿using Android.Content;
-using Android.Hardware.Camera2;
-using Android.Util;
-using AndroidX.Camera.Camera2.InterOp;
 using AndroidX.Camera.Core;
-using AndroidX.Camera.Lifecycle;
 using AndroidX.Camera.View;
-using AndroidX.Core.Content;
 using AndroidX.Lifecycle;
 using BarcodeScanner.Mobile.Platforms.Android;
-using Google.Common.Util.Concurrent;
-using Java.Lang;
 using Java.Util.Concurrent;
 using Exception = System.Exception;
 
@@ -17,235 +10,152 @@ namespace BarcodeScanner.Mobile;
 
 public partial class CameraViewHandler
 {
-    private bool isDisposed;
-
-    private IListenableFuture cameraFuture;
     private IExecutorService cameraExecutor;
-
-    private ICamera camera;
-
     private PreviewView previewView;
+    private LifecycleCameraController cameraController;
 
     protected override PreviewView CreatePlatformView()
     {
-        previewView = new PreviewView(Context);
+        cameraExecutor = Executors.NewSingleThreadExecutor();
+        cameraController = new LifecycleCameraController(Context)
+        {
+            TapToFocusEnabled = VirtualView.TapToFocusEnabled,
+            PinchToZoomEnabled = VirtualView.PinchToZoomEnabled
+        };
+        previewView = new PreviewView(Context)
+        {
+            Controller = cameraController
+        };
         return previewView;
     }
 
-
-    private void Connect()
+    private void Start()
     {
-        cameraExecutor = Executors.NewSingleThreadExecutor();
-        cameraFuture = ProcessCameraProvider.GetInstance(Context);
-        cameraFuture.AddListener(new Runnable(CameraCallback), ContextCompat.GetMainExecutor(Context));
-    }
-
-    private void CameraCallback()
-    {
-        if (isDisposed) return;
-        // Used to bind the lifecycle of cameras to the lifecycle owner
-        if (cameraFuture?.Get() is not ProcessCameraProvider cameraProvider) return;
-
-        // Preview
-        Preview.Builder previewBuilder = new();
-        Preview preview = previewBuilder.Build();
-        preview.SetSurfaceProvider(previewView.SurfaceProvider);
-
-        ImageAnalysis.Builder imageAnalyzerBuilder = new();
-        // Frame by frame analyze
-        if (VirtualView.RequestedFPS.HasValue)
+        if (cameraController is not null)
         {
-            Camera2Interop.Extender ext = new(imageAnalyzerBuilder);
-            ext.SetCaptureRequestOption(CaptureRequest.ControlAeMode, 0);
-            ext.SetCaptureRequestOption(CaptureRequest.ControlAeTargetFpsRange, new Android.Util.Range((int)VirtualView.RequestedFPS.Value, (int)VirtualView.RequestedFPS.Value));
-        }
+            cameraController.Unbind();
 
-        //https://developers.google.com/ml-kit/vision/barcode-scanning/android#input-image-guidelines
-        ImageAnalysis imageAnalyzer = imageAnalyzerBuilder
-                            .SetBackpressureStrategy(ImageAnalysis.StrategyKeepOnlyLatest) //<!-- only one image will be delivered for analysis at a time
-                            .SetTargetResolution(TargetResolution())
-                            .Build();
+            ILifecycleOwner lifecycleOwner = null;
+            if (Context is ILifecycleOwner)
+                lifecycleOwner = Context as ILifecycleOwner;
+            else if ((Context as ContextWrapper)?.BaseContext is ILifecycleOwner)
+                lifecycleOwner = (Context as ContextWrapper)?.BaseContext as ILifecycleOwner;
+            else if (Platform.CurrentActivity is ILifecycleOwner)
+                lifecycleOwner = Platform.CurrentActivity as ILifecycleOwner;
 
-        imageAnalyzer.SetAnalyzer(cameraExecutor, new BarcodeAnalyzer(VirtualView));
-
-        CameraSelector cameraSelector = SelectCamera(cameraProvider);
-
-        try
-        {
-            // Unbind use cases before rebinding
-            cameraProvider.UnbindAll();
-
-            // Searching for lifecycle owner
-            // There can be context wrapper instead of context it self, so we have to check it.
-            ILifecycleOwner lifecycleOwner = Context as ILifecycleOwner ?? (Context as ContextWrapper)?.BaseContext as ILifecycleOwner;
             if (lifecycleOwner == null)
-            {
                 throw new Exception("Unable to find lifecycle owner");
-            }
 
-            // Bind use cases to camera
-            camera = cameraProvider.BindToLifecycle(lifecycleOwner, cameraSelector, preview, imageAnalyzer);
+            UpdateResolution();
+            UpdateCamera();
+            UpdateAnalyzer();
+            UpdateTorch();
+            UpdateZoom();
 
-            HandleCustomPreviewSize(preview);
-            HandleTorch();
-            HandleZoom();
-            HandleAutoFocus();
-        }
-        catch (Exception exc)
-        {
-            Log.Debug(nameof(CameraCallback), "Use case binding failed", exc);
+            cameraController.BindToLifecycle(lifecycleOwner);
         }
     }
- 
-    private CameraSelector SelectCamera(ProcessCameraProvider cameraProvider)
+
+    private void Stop()
     {
-        if (VirtualView.CameraFacing == CameraFacing.FRONT)
+        if (cameraController is not null)
         {
-            if (cameraProvider.HasCamera(CameraSelector.DefaultFrontCamera))
+            cameraController.EnableTorch(false);
+            cameraController.SetLinearZoom(1f);
+            cameraController.Unbind();
+        }
+    }
+
+    private void HandleCameraEnabled()
+    {
+        //Delay to let transition animation finish
+        //https://stackoverflow.com/a/67765792
+        if (VirtualView is not null)
+        {
+            if (VirtualView.CameraEnabled)
             {
-                return CameraSelector.DefaultFrontCamera;
+                _ = Task.Run(async () =>
+                {
+                    await Task.Delay(200);
+                    MainThread.BeginInvokeOnMainThread(Start);
+                });
             }
-
-            throw new NotSupportedException("Front camera is not supported in this device");
+            else
+            {
+                MainThread.BeginInvokeOnMainThread(Stop);
+            }
         }
+    }
 
-        if (cameraProvider.HasCamera(CameraSelector.DefaultBackCamera))
+    //https://developer.android.com/reference/androidx/camera/mlkit/vision/MlKitAnalyzer
+    private void UpdateAnalyzer()
+    {
+        if (cameraExecutor is not null && cameraController is not null)
         {
-            return CameraSelector.DefaultBackCamera;
+            cameraController.ClearImageAnalysisAnalyzer();
+            cameraController.SetImageAnalysisAnalyzer(cameraExecutor, new BarcodeAnalyzer(VirtualView));
+            cameraController.ImageAnalysisBackpressureStrategy = ImageAnalysis.StrategyKeepOnlyLatest;
         }
+    }
 
-        throw new NotSupportedException("Back camera is not supported in this device");
+    private void UpdateCamera()
+    {
+        if (cameraController is not null)
+        {
+            if (VirtualView.CameraFacing == CameraFacing.FRONT)
+            {
+                cameraController.CameraSelector = CameraSelector.DefaultFrontCamera;
+            }
+            else
+            {
+                cameraController.CameraSelector = CameraSelector.DefaultBackCamera;
+            }
+        }
+    }
+
+    private void UpdateZoom()
+    {
+        cameraController?.SetLinearZoom(VirtualView.Zoom);
+    }
+
+    private void UpdateResolution()
+    {
+        if (cameraController is not null)
+        {
+            cameraController.ImageAnalysisTargetSize = new CameraController.OutputSize(TargetResolution());
+        }
+    }
+
+    private void UpdateTorch()
+    {
+        cameraController?.EnableTorch(VirtualView.TorchOn);
     }
 
     private Android.Util.Size TargetResolution()
     {
-        return VirtualView.CaptureQuality switch
+        if (DeviceDisplay.MainDisplayInfo.Orientation == DisplayOrientation.Portrait)
         {
-            CaptureQuality.LOWEST => new Android.Util.Size(352, 288),
-            CaptureQuality.LOW => new Android.Util.Size(640, 480),
-            CaptureQuality.MEDIUM => new Android.Util.Size(1280, 720),
-            CaptureQuality.HIGH => new Android.Util.Size(1920, 1080),
-            CaptureQuality.HIGHEST => new Android.Util.Size(3840, 2160),
-            _ => throw new ArgumentOutOfRangeException(nameof(CaptureQuality))
-        };
-    }
-
-    /// <summary>
-    /// Logic from https://stackoverflow.com/a/66659592/9032777
-    /// Focus every 3s
-    /// </summary>
-    public async void HandleAutoFocus()
-    {
-        while (true)
-        {
-            try
+            return VirtualView.CaptureQuality switch
             {
-                await Task.Delay(3000);
-
-                if (camera == null || previewView == null)
-                {
-                    continue;
-                }
-
-                float x = previewView.GetX() + previewView.Width / 2f;
-                float y = previewView.GetY() + previewView.Height / 2f;
-
-                MeteringPointFactory pointFactory = previewView.MeteringPointFactory;
-                float afPointWidth = 1.0f / 6.0f;  // 1/6 total area
-                float aePointWidth = afPointWidth * 1.5f;
-                MeteringPoint afPoint = pointFactory.CreatePoint(x, y, afPointWidth);
-                MeteringPoint aePoint = pointFactory.CreatePoint(x, y, aePointWidth);
-
-                camera.CameraControl.StartFocusAndMetering(
-                    new FocusMeteringAction.Builder(
-                        afPoint,
-                        FocusMeteringAction.FlagAf
-                    )
-                    .AddPoint(aePoint, FocusMeteringAction.FlagAe).Build());
-            }
-            catch (Exception)
+                CaptureQuality.LOWEST => new Android.Util.Size(288, 352),
+                CaptureQuality.LOW => new Android.Util.Size(480, 640),
+                CaptureQuality.MEDIUM => new Android.Util.Size(720, 1280),
+                CaptureQuality.HIGH => new Android.Util.Size(1080, 1920),
+                CaptureQuality.HIGHEST => new Android.Util.Size(2160, 3840),
+                _ => throw new ArgumentOutOfRangeException(nameof(CaptureQuality))
+            };
+        }
+        else
+        {
+            return VirtualView.CaptureQuality switch
             {
-                // Ignore
-            }
-        }
-    }
-
-    public void HandleTorch()
-    {
-        if (camera == null || VirtualView == null || !camera.CameraInfo.HasFlashUnit) return;
-       
-        camera.CameraControl.EnableTorch(VirtualView.TorchOn);
-    }
-
-    public void HandleZoom()
-    {
-        if (camera == null || VirtualView == null) return;
-
-        camera.CameraControl.SetLinearZoom(VirtualView.Zoom);
-    }
-
-    private bool IsTorchOn()
-    {
-        if (camera == null || !camera.CameraInfo.HasFlashUnit) return false;
-
-        return (int)camera.CameraInfo.TorchState?.Value == TorchState.On;
-    }
-
-    private void DisableTorchIfNeeded()
-    {
-        if (camera == null || !camera.CameraInfo.HasFlashUnit || (int)camera.CameraInfo.TorchState?.Value != TorchState.On)
-        {
-            return;
-        }
-
-        camera.CameraControl.EnableTorch(false);
-    }
-
-    private void HandleCustomPreviewSize(Preview preview)
-    {
-        if (VirtualView.PreviewWidth.HasValue && VirtualView.PreviewHeight.HasValue)
-        {
-            var width = VirtualView.PreviewWidth.Value;
-            var height = VirtualView.PreviewHeight.Value;
-            preview.UpdateSuggestedResolution(new Android.Util.Size(width, height));
-        }
-    }
-
-    private void Dispose()
-    {
-        if (isDisposed) return;
-
-        DisableTorchIfNeeded();
-
-        cameraExecutor?.Shutdown();
-        cameraExecutor?.Dispose();
-        cameraExecutor = null;
-
-        ClearCameraProvider();
-
-        cameraFuture?.Cancel(true);
-        cameraFuture?.Dispose();
-        cameraFuture = null;
-
-        isDisposed = true;
-    }
- 
-    private void ClearCameraProvider()
-    {
-        try
-        {
-            // Used to bind the lifecycle of cameras to the lifecycle owner
-            if (cameraFuture?.Get() is not ProcessCameraProvider cameraProvider)
-            {
-                return;
-            }
-
-            cameraProvider?.UnbindAll();
-            cameraProvider?.Dispose();
-        }
-        catch (Exception ex)
-        {
-            Log.Debug($"{nameof(CameraViewHandler)}-{nameof(ClearCameraProvider)}", ex.ToString());
+                CaptureQuality.LOWEST => new Android.Util.Size(352, 288),
+                CaptureQuality.LOW => new Android.Util.Size(640, 480),
+                CaptureQuality.MEDIUM => new Android.Util.Size(1280, 720),
+                CaptureQuality.HIGH => new Android.Util.Size(1920, 1080),
+                CaptureQuality.HIGHEST => new Android.Util.Size(3840, 2160),
+                _ => throw new ArgumentOutOfRangeException(nameof(CaptureQuality))
+            };
         }
     }
 }
